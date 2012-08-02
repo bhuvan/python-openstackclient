@@ -20,6 +20,7 @@ Command-line interface to the OpenStack APIs
 """
 
 import getpass
+import keyring
 import logging
 import os
 import sys
@@ -33,6 +34,7 @@ from openstackclient.common import utils
 
 
 VERSION = '0.1'
+KEYRING_SERVICE = 'openstack'
 
 
 def env(*vars, **kwargs):
@@ -149,12 +151,14 @@ class OpenStackShell(App):
                     "You must provide a username via"
                     " either --os-username or env[OS_USERNAME]")
 
+            self.get_password_from_keyring()
             if not self.options.os_password:
                 # No password, if we've got a tty, try prompting for it
                 if hasattr(sys.stdin, 'isatty') and sys.stdin.isatty():
                     # Check for Ctl-D
                     try:
                         self.options.os_password = getpass.getpass()
+                        self.set_password_in_keyring()
                     except EOFError:
                         pass
                 # No password because we did't have a tty or the
@@ -187,6 +191,24 @@ class OpenStackShell(App):
             api_version=self.api_version,
             )
         return
+
+    def get_password_from_keyring(self):
+        """Get password from keyring, if it's set"""
+        service = KEYRING_SERVICE
+        if not self.options.os_password:
+            password = keyring.get_password(service, self.options.os_username)
+            os.options.os_password = password
+
+    def set_password_in_keyring(self):
+        """Set password in keyring for this user"""
+        service = KEYRING_SERVICE
+        if self.options.os_password:
+            password = keyring.get_password(service, self.options.os_username)
+            # either password is not set in keyring, or it is different
+            if password != self.options.os_password:
+                keyring.set_password(service,
+                                     self.options.os_username,
+                                     self.options.os_password)
 
     def initialize_app(self, argv):
         """Global app init bits:

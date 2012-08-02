@@ -1,6 +1,7 @@
 cliff
 argparse
 httplib2
+keyring
 prettytable
 python-keystoneclient>=0.1,<0.2
 python-novaclient>=2,<3
